@@ -15,41 +15,46 @@ jobs:
           
       - name: Send Discord Announcement
         run: |
-          # 1. Find the uploaded zip file name using a safer diff method
+          # 1. Find the uploaded zip file name safely
           FILE=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '\.zip$' | head -n 1)
-          if [ -z "$FILE" ]; then exit 0; fi
+          if [[ -z "$FILE" ]]; then exit 0; fi
           
-          # 2. Extract AppID from filename (e.g. gets 4010900 from 4010900.zip)
+          # 2. Extract AppID from filename
           APP_ID=$(basename "$FILE" .zip)
           
-          # 3. Fetch Game Name from Steam (Bypassing age-gates)
+          # 3. Fetch Game Name from Steam
           STEAM_DATA=$(curl -s -A "Mozilla/5.0" --cookie "birthtime=283993201; lastagecheckage=1-January-1979;" "https://store.steampowered.com/api/appdetails?appids=${APP_ID}")
-          GAME_NAME=$(echo "$STEAM_DATA" \vert{} jq -r ".[\"${APP_ID}\"].data.name // empty")
           
-          # Fallback just in case Steam errors out
-          if [ -z "$GAME_NAME" ] \vert{}\vert{} [ "$GAME_NAME" = "null" ]; then
+          # Extract name and strip any weird newlines that break the code
+          GAME_NAME=$(echo "$STEAM_DATA" \vert{} jq -r ".[\"${APP_ID}\"].data.name // empty" | tr -d '\n')
+          
+          # Fallback using safe double-brackets
+          if [[ -z "$GAME_NAME" ]] \vert{}\vert{} [[ "$GAME_NAME" == "null" ]]; then
             GAME_NAME="App $APP_ID"
           fi
           
           # 4. Construct Steam Header Image URL
           IMAGE_URL="https://steamcdn-a.akamaihd.net/steam/apps/${APP_ID}/header.jpg"
           
-          # 5. Build and send the Discord Webhook
-          curl -H "Content-Type: application/json" -X POST -d "$(jq -n \
+          # 5. Build a secure JSON payload file to prevent Discord API errors
+          jq -n \
             --arg title "$GAME_NAME Added!" \
             --arg desc "The game file \`$FILE\` has been successfully uploaded to the database." \
             --arg img "$IMAGE_URL" \
             --arg id "$APP_ID" \
             '{
-              username: "Effectless Database",
-              content: "🎮 **New Game File Available!**",
-              embeds: [{
-                title: $title,
-                description: $desc,
-                color: 5814783,
-                image: { url: $img },
-                fields: [
-                  { name: "AppID", value: $id, inline: true }
+              "username": "Effectless Database",
+              "content": "🎮 **New Game File Available!**",
+              "embeds": [{
+                "title": $title,
+                "description": $desc,
+                "color": 5814783,
+                "image": { "url": $img },
+                "fields": [
+                  { "name": "AppID", "value": $id, "inline": true }
                 ]
               }]
-            }')" ${{ secrets.WEBHOOK_URL }}
+            }' > payload.json
+            
+          # 6. Send the payload to Discord
+          curl -H "Content-Type: application/json" -X POST -d @payload.json ${{ secrets.WEBHOOK_URL }}
