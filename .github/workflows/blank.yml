@@ -15,8 +15,8 @@ jobs:
           
       - name: Send Discord Announcement
         run: |
-          # 1. Find the uploaded zip file name
-          FILE=$(git diff --name-only HEAD^ HEAD | grep '\.zip$' | head -n 1)
+          # 1. Find the uploaded zip file name using a safer diff method
+          FILE=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '\.zip$' | head -n 1)
           if [ -z "$FILE" ]; then exit 0; fi
           
           # 2. Extract AppID from filename (e.g. gets 4010900 from 4010900.zip)
