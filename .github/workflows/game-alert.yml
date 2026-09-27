@@ -21,26 +21,16 @@ jobs:
           added_files=$(git diff --name-only --diff-filter=A HEAD^ HEAD | grep '\.zip$' || true)
           
           for file in $added_files; do
-            # Extract just the numbers from the file name
+            # Extract the AppID
             appid=$(basename "$file" .zip)
             
-            # Build the custom Discord embed
-            json_payload=$(cat <<EOF
-            {
-              "embeds": [
-                {
-                  "title": "🎉 New Game Added!",
-                  "description": "**AppID:** \`$appid\`\nUse \`/gen $appid\` in the bot to generate your download.",
-                  "color": 1782584,
-                  "image": {
-                    "url": "https://cdn.akamai.steamstatic.com/steam/apps/$appid/header.jpg"
-                  }
-                }
-              ]
-            }
-            EOF
+            # Safely build the JSON payload using jq to prevent spacing errors
+            JSON_PAYLOAD=$(jq -n \
+              --arg appid "$appid" \
+              --arg url "https://cdn.akamai.steamstatic.com/steam/apps/$appid/header.jpg" \
+              '{embeds: [{title: "🎉 New Game Added!", description: "**AppID:** `\($appid)`\nUse `/gen \($appid)` in the bot to generate your download.", color: 1782584, image: {url: $url}}]}' \
             )
             
             # Send to Discord
-            curl -H "Content-Type: application/json" -d "$json_payload" $WEBHOOK_URL
+            curl -H "Content-Type: application/json" -d "$JSON_PAYLOAD" $WEBHOOK_URL
           done
