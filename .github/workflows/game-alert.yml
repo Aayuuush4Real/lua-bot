@@ -1,0 +1,46 @@
+name: Notify Discord on ZIP Upload
+
+on:
+  push:
+    paths:
+      - '**.zip'
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+          
+      - name: Send Alert to Discord
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          # Find newly added zip files
+          added_files=$(git diff --name-only --diff-filter=A HEAD^ HEAD | grep '\.zip$' || true)
+          
+          for file in $added_files; do
+            # Extract just the numbers from the file name
+            appid=$(basename "$file" .zip)
+            
+            # Build the custom Discord embed
+            json_payload=$(cat <<EOF
+            {
+              "embeds": [
+                {
+                  "title": "🎉 New Game Added!",
+                  "description": "**AppID:** \`$appid\`\nUse \`/gen $appid\` in the bot to generate your download.",
+                  "color": 1782584,
+                  "image": {
+                    "url": "https://cdn.akamai.steamstatic.com/steam/apps/$appid/header.jpg"
+                  }
+                }
+              ]
+            }
+            EOF
+            )
+            
+            # Send to Discord
+            curl -H "Content-Type: application/json" -d "$json_payload" $WEBHOOK_URL
+          done
