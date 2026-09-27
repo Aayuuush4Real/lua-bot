@@ -28,7 +28,7 @@ jobs:
             JSON_PAYLOAD=$(jq -n \
               --arg appid "$appid" \
               --arg url "https://cdn.akamai.steamstatic.com/steam/apps/$appid/header.jpg" \
-              '{embeds: [{title: "🎉 New Game Added!", description: "**AppID:** `\($appid)`\nUse `/gen \($appid)` in the bot to generate your download.", color: 1782584, image: {url: $url}}]}' \
+              '{embeds: [{title: "🎉 New Game Added!", description: "**AppID:** `\($appid)`\nUse `/gen \($appid)` in <#1492136311212212347> to generate your download.", color: 1782584, image: {url: $url}}]}' \
             )
             
             # Send to Discord
